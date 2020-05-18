@@ -1,19 +1,26 @@
 package model;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 import static java.lang.Math.PI;
 
 public class Mouse {
     // Constants
-    private static double TWO_PI = 2 * PI;
-    private static double MOUSE_SPEED = 0.001;
-    private static double SPEED_FACTOR = 4.0;
-    private static double CAT_SPEED = SPEED_FACTOR * MOUSE_SPEED;
+    private static final double TAU = 2 * PI;
+    private static final double MOUSE_STEP = 0.001;
+    private static final double SPEED_FACTOR = 4.0;
+    private static final double CAT_STEP = SPEED_FACTOR * MOUSE_STEP;
+    private static final ThreadLocalRandom RNG = ThreadLocalRandom.current();
 
     // State variables
-    private double x = 0.0;
-    private double y = 0.0;
-    private double catAngle = PI / 2.0; // = South
-    private double catDirection = 1.0; // 1.0 for increasing angle, -1.0 for decreasing angle.
+    private double x;
+    private double y;
+    private double catAngle;
+    private double catDirection; // 1.0 for increasing angle, -1.0 for decreasing angle
+
+    public Mouse() {
+        initialize();
+    }
 
     public void optimalMove() {
         double cashedX = x;
@@ -23,8 +30,8 @@ public class Mouse {
         double minCost = 1.0;
         double optimalDirection = 0.0;
 
-        int numAngles = 360;
-        for (double direction = 0; direction < TWO_PI; direction += TWO_PI / numAngles) {
+        int numAngles = 720;
+        for (double direction = 0; direction < TAU; direction += TAU / numAngles) {
             double cost = move(direction);
             if (cost < minCost) {
                 optimalDirection = direction;
@@ -39,21 +46,22 @@ public class Mouse {
     }
 
     private double move(double dir) {
-        x += Math.cos(dir) * MOUSE_SPEED;
-        y += Math.sin(dir) * MOUSE_SPEED;
+        x += Math.cos(dir) * MOUSE_STEP;
+        y += Math.sin(dir) * MOUSE_STEP;
         double mouseAngle = Math.atan2(y, x);
         double alpha = angleDiff(catAngle, mouseAngle); // 0 <= alpha < TWO_PI
-        if (PI - CAT_SPEED < alpha && alpha < PI + CAT_SPEED) {
-            catAngle += catDirection * CAT_SPEED;
-        } else if (CAT_SPEED < alpha && alpha <= PI) {
+        if (PI - 0.001 < alpha && alpha < PI + 0.001) {
+            catAngle += catDirection * CAT_STEP;
+        } else if (CAT_STEP < alpha && alpha <= PI) {
             catDirection = 1.0;
-            catAngle += CAT_SPEED;
-        } else if (PI < alpha && alpha < TWO_PI - CAT_SPEED) {
+            catAngle += CAT_STEP;
+        } else if (PI < alpha && alpha < TAU - CAT_STEP) {
             catDirection = -1.0;
-            catAngle -= CAT_SPEED;
+            catAngle -= CAT_STEP;
         } else {
             catAngle = mouseAngle;
         }
+        alpha = angleDiff(catAngle, mouseAngle);
         return getCost(alpha);
     }
 
@@ -78,7 +86,7 @@ public class Mouse {
     }
 
     private double getCost(double alpha) {
-        alpha = alpha > PI ? TWO_PI - alpha : alpha; // 0 <= alpha <= PI
+        alpha = alpha > PI ? TAU - alpha : alpha; // 0 <= alpha <= PI
         return getDistanceToEdge() - alpha / SPEED_FACTOR;
     }
 
@@ -86,7 +94,14 @@ public class Mouse {
      * @return angle from alpha to beta as a value between 0 (inclusive) and 2 * PI (exclusive)
      */
     private double angleDiff(double alpha, double beta) {
-        double gamma = (beta - alpha) % TWO_PI;
-        return gamma < 0.0 ? gamma + TWO_PI : gamma;
+        double gamma = (beta - alpha) % TAU;
+        return gamma < 0.0 ? gamma + TAU : gamma;
+    }
+
+    public void initialize() {
+        x = 0.0;
+        y = 0.0;
+        catAngle = PI / 2; // South
+        catDirection = RNG.nextBoolean() ? 1.0 : -1.0;
     }
 }

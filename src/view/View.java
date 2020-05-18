@@ -11,12 +11,17 @@ import java.util.ArrayList;
 
 public class View extends JPanel implements Runnable, ActionListener {
 
-    private int WIDTH = 850;
-    private int HEIGHT = 850;
+    private enum STATE {
+        READY, RUNNING, PAUSED, FINISHED
+    }
+    private int WIDTH = 800;
+    private int HEIGHT = 800;
     private Mouse mouse;
     private ArrayList<Integer> xTrace = new ArrayList<>();
     private ArrayList<Integer> yTrace = new ArrayList<>();
-    private Timer ticker = new Timer(10, this);
+    private Timer ticker = new Timer(5, this);
+    private JButton controlButton;
+    private STATE state = STATE.READY;
 
     public static void main(String[] args) {
         View view = new View();
@@ -26,12 +31,14 @@ public class View extends JPanel implements Runnable, ActionListener {
     public void run() {
         JFrame frame = new JFrame("Cat and Mouse");
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
-        frame.add(this);
+        frame.add(this, BorderLayout.NORTH);
+        controlButton = new JButton("START");
+        controlButton.addActionListener(this::controlPerformed);
+        frame.add(controlButton, BorderLayout.SOUTH);
         frame.pack();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
         mouse = new Mouse();
-        ticker.start();
     }
 
     @Override
@@ -40,10 +47,14 @@ public class View extends JPanel implements Runnable, ActionListener {
         // Background
         g2.setColor(Color.WHITE);
         g2.fillRect(0, 0, WIDTH, HEIGHT);
+        Ellipse2D.Double pond = new Ellipse2D.Double(5, 5, WIDTH - 10, HEIGHT - 10);
         g2.setColor(Color.BLUE);
-        g2.draw(new Ellipse2D.Double(5, 5, WIDTH - 10, HEIGHT - 10));
+        g2.draw(pond);
+        g2.setColor(new Color(0, 63, 127, 80));
+        g2.fill(pond);
         int centerX = WIDTH / 2;
         int centerY = HEIGHT / 2;
+        g2.setColor(Color.RED);
         g2.drawLine(centerX - 5, centerY, centerX + 5, centerY);
         g2.drawLine(centerX, centerY - 5, centerX, centerY + 5);
         // Mouse
@@ -55,7 +66,7 @@ public class View extends JPanel implements Runnable, ActionListener {
         yTrace.add(mouseY);
         int xStart = xTrace.get(0);
         int yStart = yTrace.get(0);
-        for (int i = 2; i < xTrace.size(); i+=2) {
+        for (int i = 1; i < xTrace.size(); i++) {
             int xEnd = xTrace.get(i);
             int yEnd = yTrace.get(i);
             g2.drawLine(xStart, yStart, xEnd, yEnd);
@@ -75,9 +86,39 @@ public class View extends JPanel implements Runnable, ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         mouse.optimalMove();
-        if(mouse.getDistanceToEdge() <= 0.0) {
+        if (mouse.getDistanceToEdge() <= 0.0) {
             ticker.stop();
+            state = STATE.FINISHED;
+            controlButton.setText("RESET");
         }
+        repaint();
+    }
+
+    private void controlPerformed(ActionEvent e) {
+        switch (state) {
+            case READY:
+            case PAUSED:
+                state = STATE.RUNNING;
+                controlButton.setText("PAUSE");
+                ticker.start();
+                break;
+            case RUNNING:
+                ticker.stop();
+                state = STATE.PAUSED;
+                controlButton.setText("CONTINUE");
+                break;
+            case FINISHED:
+                reset();
+                controlButton.setText("START");
+                state = STATE.READY;
+                break;
+        }
+    }
+
+    private void reset() {
+        xTrace.clear();
+        yTrace.clear();
+        mouse.initialize();
         repaint();
     }
 }
